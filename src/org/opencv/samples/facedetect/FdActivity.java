@@ -22,16 +22,21 @@ import org.opencv.objdetect.CascadeClassifier;
 
 import android.app.Activity;
 import android.content.Context;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.*;
 
-public class FdActivity extends Activity implements CvCameraViewListener2 {
+public class FdActivity extends Activity implements CvCameraViewListener2, SensorEventListener {
 
     private final static UUID PEBBLE_APP_UUID = UUID.fromString("55dcd496-71a9-4f14-83ae-9966d4dd19e4");
 	
@@ -62,6 +67,18 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
     private CameraBridgeViewBase   mOpenCvCameraView;
     
     private int					   faceCount		   = 0; //need to implement face counting feature to put number in the rect
+    
+   TextView textSpeedZ;
+   
+   float lastX, lastY, lastZ;
+   SensorManager sensorManager;
+   Sensor accelerometer;
+   
+   float deltaZ = 0;
+   
+   float deltaZMax = 0;
+   
+   
 
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -129,11 +146,22 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
         Log.i(TAG, "called onCreate");
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-
         setContentView(R.layout.face_detect_surface_view);
+        
+        sensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        accelerometer= sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+        
+        //text accleration
+        textSpeedZ = (TextView) findViewById(R.id.txtSpeed);
+        
 
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.fd_activity_surface_view);
         mOpenCvCameraView.setCvCameraViewListener(this);
+    }
+    
+    public void initializeView(){
+    	
+    	
     }
 
     @Override
@@ -142,6 +170,8 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
         super.onPause();
         if (mOpenCvCameraView != null)
             mOpenCvCameraView.disableView();
+        
+        sensorManager.unregisterListener(this);
     }
 
     @Override
@@ -149,6 +179,8 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
     {
         super.onResume();
         OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this, mLoaderCallback);
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        
     }
 
     public void onDestroy() {
@@ -195,8 +227,9 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
         }
 
         Rect[] facesArray = faces.toArray();
-        for (int i = 0; i < facesArray.length; i++)
+        for (int i = 0; i<facesArray.length; i++){
             Core.rectangle(mRgba, facesArray[i].tl(), facesArray[i].br(), FACE_RECT_COLOR, 3);
+        }
 
         return mRgba;
     }
@@ -281,4 +314,21 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
             }
         }
     }
+
+	@Override
+	public void onSensorChanged(SensorEvent event) {
+		// TODO Auto-generated method stub
+
+		deltaZ = Math.abs(lastZ - event.values[2]);
+		textSpeedZ.setText(Float.toString(deltaZ));
+		
+	}
+
+	@Override
+	public void onAccuracyChanged(Sensor sensor, int accuracy) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	
 }
