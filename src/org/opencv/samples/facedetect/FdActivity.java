@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.UUID;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewFrame;
@@ -27,9 +28,15 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
 
+import com.getpebble.android.kit.PebbleKit;
+import com.getpebble.android.kit.util.*;
+
 public class FdActivity extends Activity implements CvCameraViewListener2 {
 
-    private static final String    TAG                 = "OCVSample::Activity";
+    private final static UUID PEBBLE_APP_UUID = UUID.fromString("55dcd496-71a9-4f14-83ae-9966d4dd19e4");
+	
+	private PebbleDictionary data;
+	private static final String    TAG                 = "OCVSample::Activity";
     private static final Scalar    FACE_RECT_COLOR     = new Scalar(0, 255, 0, 255);
     public static final int        JAVA_DETECTOR       = 0;
     public static final int        NATIVE_DETECTOR     = 1;
@@ -194,6 +201,38 @@ public class FdActivity extends Activity implements CvCameraViewListener2 {
         return mRgba;
     }
 
+    public void AlertPebble(){
+        if(PebbleKit.isWatchConnected(getApplicationContext())){
+            data = new PebbleDictionary();
+            data.addUint8(0, (byte) 42);
+            PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, data);
+
+            PebbleKit.registerReceivedAckHandler(getApplicationContext(), new PebbleKit.PebbleAckReceiver(PEBBLE_APP_UUID) {
+
+                @Override
+                public void receiveAck(Context context, int transactionId) {
+                    Log.i(getLocalClassName(), "Received ack for transaction " + transactionId);
+                }
+
+            });
+
+            PebbleKit.registerReceivedNackHandler(getApplicationContext(), new PebbleKit.PebbleNackReceiver(PEBBLE_APP_UUID) {
+
+                @Override
+                public void receiveNack(Context context, int transactionId) {
+                    if(data!= null){
+                        PebbleKit.sendDataToPebble(getApplicationContext(), PEBBLE_APP_UUID, data);
+                    } else {
+                        data = new PebbleDictionary();
+                        data.addUint8(0, (byte) 42);
+                    }
+                }
+
+            });
+        }
+    }
+
+    
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         Log.i(TAG, "called onCreateOptionsMenu");
